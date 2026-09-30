@@ -20,7 +20,7 @@ uvicorn app.main:app --reload
 
 Open [http://127.0.0.1:8000](http://127.0.0.1:8000) for the review UI, or [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) for the API. Click **Load sample**, then ingest it. You can also paste the text in [`examples/invoice-review.txt`](examples/invoice-review.txt) to see an amount mismatch.
 
-Run tests with `pip install -r requirements-dev.txt && pytest -q`.
+Run tests with `pip install -r requirements-dev.txt && python -m pytest -q`.
 
 To run the API in Docker: `docker build -t invoice-review-api . && docker run --rm -p 8000:8000 invoice-review-api`. Data inside this container is temporary unless you mount a volume at `/data`.
 
