@@ -1,0 +1,7 @@
+Vendor: Acme Office Supplies
+Invoice Number: ACME-2026-1042
+Invoice Date: 2026-09-15
+Subtotal: INR 1,250.00
+Tax: INR 225.00
+Total: INR 1,475.00
+

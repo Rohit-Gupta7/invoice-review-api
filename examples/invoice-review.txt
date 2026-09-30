@@ -1,0 +1,7 @@
+Supplier: Northwind Logistics
+Invoice No: NW-0926-77
+Date: 2026-09-16
+Subtotal: INR 8,500.00
+GST: INR 1,530.00
+Grand Total: INR 10,300.00
+
