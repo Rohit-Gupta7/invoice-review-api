@@ -47,6 +47,9 @@ def test_validation_correction_and_duplicate_detection(tmp_path):
                     json={"reviewer": "Rohit"}).status_code == 200
     second = api.post("/api/invoices", json={"source_id": "b", "text": GOOD}).json()
     assert "possible_duplicate_invoice" in second["issues"]
+    corrected_duplicate = api.patch(f"/api/invoices/{second['id']}",
+                                    json={"reviewer": "Rohit", "tax": "225.00"}).json()
+    assert "possible_duplicate_invoice" in corrected_duplicate["issues"]
     assert api.post(f"/api/invoices/{second['id']}/decisions?action=reject",
                     json={"reviewer": "Rohit", "reason": "Duplicate"}).status_code == 200
 
