@@ -10,17 +10,26 @@ Enterprise document workflows need more than extraction. A useful system also ne
 
 ## Try it in three minutes
 
-```bash
+Windows PowerShell (Python 3.11+):
+
+```powershell
 python -m venv .venv
-# Windows: .venv\Scripts\activate
-# macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+```
+
+macOS/Linux:
+
+```bash
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --reload
 ```
 
 Open [http://127.0.0.1:8000](http://127.0.0.1:8000) for the review UI, or [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) for the API. Click **Load sample**, then ingest it. You can also paste the text in [`examples/invoice-review.txt`](examples/invoice-review.txt) to see an amount mismatch.
 
-Run tests with `pip install -r requirements-dev.txt && python -m pytest -q`.
+Run tests with your virtual environment's Python: `python -m pip install -r requirements-dev.txt && python -m pytest -q` (use `.\.venv\Scripts\python.exe` in place of `python` on Windows PowerShell).
 
 To run the API in Docker: `docker build -t invoice-review-api . && docker run --rm -p 8000:8000 invoice-review-api`. Data inside this container is temporary unless you mount a volume at `/data`.
 
@@ -40,9 +49,10 @@ The default SQLite file is `invoice_review.db`; set `INVOICE_DB` to override it.
 
 ## Design notes
 
-- Amounts use `Decimal`, so `subtotal + tax = total` is checked at currency precision.
+- Amounts use `Decimal`; reviewers can enter at most two decimal places, and `subtotal + tax` must equal `total` exactly.
 - A duplicate is flagged when vendor and invoice number match an existing record. It remains a review issue rather than being silently discarded.
-- OCR text can be wrong or incomplete. The extractor leaves unknown values empty; reviewers correct fields before approval.
+- OCR text can be wrong or incomplete. The rule-based extractor accepts `Label: value` lines, leaves unknown values empty, and lets reviewers correct fields before approval.
+- Corrections record the previous and new values in the audit trail. A database write lock prevents two reviewers from deciding the same invoice at once.
 - The sample invoices are fictional. No employer data or proprietary code is included.
 
 ## Next steps

@@ -106,6 +106,7 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
         timestamp = now()
         invoice_id = str(uuid4())
         with connect() as db:
+            db.execute("BEGIN IMMEDIATE")
             existing = db.execute("SELECT * FROM invoices WHERE source_id = ?", (payload.source_id,)).fetchone()
             if existing:
                 if existing["raw_text"] == payload.text:
@@ -144,6 +145,7 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
         if action not in ("approve", "reject"):
             raise HTTPException(400, "action must be approve or reject")
         with connect() as db:
+            db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT * FROM invoices WHERE id = ?", (invoice_id,)).fetchone()
             if row is None:
                 raise HTTPException(404, "invoice not found")
@@ -173,9 +175,12 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
                     amount = Decimal(changes[field])
                     if not amount.is_finite() or amount < 0:
                         raise InvalidOperation
-                    changes[field] = str(amount)
+                    cents = amount.quantize(Decimal("0.01"))
+                    if amount != cents:
+                        raise InvalidOperation
+                    changes[field] = str(cents)
                 except (InvalidOperation, ValueError):
-                    raise HTTPException(422, f"{field} must be a nonnegative number") from None
+                    raise HTTPException(422, f"{field} must be a nonnegative amount with at most two decimal places") from None
         if "invoice_date" in changes and changes["invoice_date"] is not None:
             try:
                 changes["invoice_date"] = date.fromisoformat(changes["invoice_date"]).isoformat()
@@ -186,13 +191,17 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
                 changes[field] = changes[field].strip()
                 if not changes[field] or len(changes[field]) > 120:
                     raise HTTPException(422, f"{field} must contain 1 to 120 characters")
+        if "currency" in changes and changes["currency"] not in (None, "INR", "USD"):
+            raise HTTPException(422, "currency must be INR or USD")
         with connect() as db:
+            db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT * FROM invoices WHERE id = ?", (invoice_id,)).fetchone()
             if row is None:
                 raise HTTPException(404, "invoice not found")
             if row["status"] != "needs_review":
                 raise HTTPException(409, "reviewed invoice cannot be changed")
-            extracted = json.loads(row["extracted"])
+            original = json.loads(row["extracted"])
+            extracted = original.copy()
             extracted.update(changes)
             issues = validate_invoice(extracted)
             if duplicate_exists(db, extracted, invoice_id):
@@ -200,8 +209,12 @@ def create_app(db_path: str | Path | None = None) -> FastAPI:
             timestamp = now()
             db.execute("UPDATE invoices SET extracted = ?, issues = ?, updated_at = ? WHERE id = ?",
                        (json.dumps(extracted), json.dumps(issues), timestamp, invoice_id))
+            change_log = ", ".join(
+                f"{field}: {original[field] if original[field] is not None else '∅'} → "
+                f"{value if value is not None else '∅'}" for field, value in sorted(changes.items())
+            )
             db.execute("INSERT INTO events (invoice_id, action, actor, reason, created_at) VALUES (?, ?, ?, ?, ?)",
-                       (invoice_id, "corrected", correction.reviewer, ", ".join(sorted(changes)), timestamp))
+                       (invoice_id, "corrected", correction.reviewer, change_log, timestamp))
             result = db.execute("SELECT * FROM invoices WHERE id = ?", (invoice_id,)).fetchone()
         return serialize(result)
 
