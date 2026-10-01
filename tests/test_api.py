@@ -82,6 +82,7 @@ def test_one_cent_mismatch_and_empty_field_are_not_approved(tmp_path):
     assert api.post(f"/api/invoices/{invoice['id']}/decisions?action=approve",
                     json={"reviewer": "Rohit"}).status_code == 422
     assert extract_invoice("Invoice Number:\nVendor: Acme Office Supplies\nSubtotal: 12.00")["invoice_number"] is None
+    assert extract_invoice("Invoice Number:   \nVendor: Acme Office Supplies\nSubtotal: 12.00")["invoice_number"] is None
 
 
 def test_competing_reviewers_cannot_both_decide(tmp_path):

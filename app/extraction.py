@@ -12,7 +12,8 @@ AMOUNT = r"(?:INR|Rs\.?|₹|USD|\$)?\s*([\d,]+(?:\.\d{1,2})?)"
 def _field(text: str, names: tuple[str, ...]) -> str | None:
     labels = "|".join(re.escape(name) for name in names)
     match = re.search(rf"(?im)^[ \t]*(?:{labels})[ \t]*:[ \t]*([^\r\n]+)[ \t]*$", text)
-    return match.group(1).strip() if match else None
+    value = match.group(1).strip() if match else ""
+    return value or None
 
 
 def _money(text: str, names: tuple[str, ...]) -> Decimal | None:
@@ -56,7 +57,7 @@ def extract_invoice(text: str) -> dict:
 def validate_invoice(data: dict) -> list[str]:
     issues: list[str] = []
     for field in ("invoice_number", "vendor", "invoice_date", "subtotal", "tax", "total", "currency"):
-        if data[field] is None:
+        if not data[field]:
             issues.append(f"missing_or_invalid_{field}")
     if data["currency"] not in (None, "INR", "USD"):
         issues.append("unsupported_currency")
